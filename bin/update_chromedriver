@@ -1,0 +1,146 @@
+#!/usr/bin/env ruby
+# update_chromedriver
+
+# 20221023
+# 0.0.0
+
+gem 'http.rb'
+
+require 'fileutils'
+require 'http'
+require 'nokogiri'
+require 'open-uri'
+require 'zip'
+require 'String/matches'
+require 'Version'
+
+def home_directory
+  File.expand_path('~')
+end
+
+def root_application_version
+  file_path = "'/Applications/Google Chrome.app/Contents/Info'"
+  command = "defaults read #{file_path} CFBundleShortVersionString"
+  `#{command}`.strip
+end
+
+def user_applications_version
+  file_path = "'#{home_directory}/Applications/Google Chrome.app/Contents/Info'"
+  command = "defaults read #{file_path} CFBundleShortVersionString"
+  `#{command}`.strip
+end
+
+def root_application?
+  File.exist?('/Applications/Google Chrome.app')
+end
+
+def user_application?
+  File.exist?("#{home_directory}/Applications/Google Chrome.app")
+end
+
+def current_version_string
+  if user_application?
+    user_applications_version
+  elsif root_application?
+    root_application_version
+  else
+    puts "Google Chrome is installed neither in /Applications nor in ~/Applications."
+  end
+end
+
+def current_version
+  @current_version ||= Version.new(current_version_string)
+end
+
+def downloads_page_url
+  'https://chromedriver.chromium.org/downloads'
+end
+
+def all_links
+  downloads_page = HTTP.get(downloads_page_url).body
+  document = Nokogiri::HTML.parse(downloads_page)
+  nodeset = document.xpath('//a')
+  nodeset.map{|element| element["href"]}.compact
+end
+
+def download_page_links
+  all_links.select do |link|
+    link.match?(/path=\d+\.\d+\.\d+\.\d+/)
+  end
+end
+
+def downloadable_version_strings
+  download_page_links.map do |download_page_link|
+    download_page_link.matches(/(\d+\.\d+\.\d+\.\d+)/)
+  end.flatten.uniq
+end
+
+def downloadable_versions
+  downloadable_version_strings.map do |downloadable_version_string|
+    Version.new(downloadable_version_string)
+  end
+end
+
+def required_version
+  @required_version ||= (
+    matching_versions = downloadable_versions.select do |downloadable_version|
+      [current_version.major, current_version.minor, current_version.tiny] === [downloadable_version.major, downloadable_version.minor, downloadable_version.tiny]
+    end
+    Version.latest(matching_versions.flatten)
+  )
+end
+
+def download_url
+  "https://chromedriver.storage.googleapis.com/#{required_version}/chromedriver_mac64.zip"
+end
+
+def download_directory
+  "#{home_directory}/Downloads"
+end
+
+def download_file_path
+  File.join(download_directory, 'chromedriver_mac64.zip')
+end
+
+def download_chromedriver
+  open(download_file_path, 'wb') do |file|
+    file << URI.open(download_url).read
+  end
+end
+
+def unzip_chromedriver
+  Zip::File.open(download_file_path) do |zip_file|
+    zip_file.each do |zip_entry|
+      zip_file.extract(zip_entry, "#{download_directory}/chromedriver") unless File.exist?("#{download_directory}/#{zip_entry.name}")
+    end
+  end
+end
+
+def remove_old_chromedriver
+  FileUtils.rm("#{home_directory}/bin/chromedriver")
+end
+
+def move_chromedriver_to_bin_dir
+  FileUtils.mv("#{home_directory}/Downloads/chromedriver", "#{home_directory}/bin/chromedriver")
+end
+
+def make_chromedriver_executable
+  FileUtils.chmod('+x', "#{home_directory}/bin/chromedriver")
+end
+
+def remove_zip_file
+  FileUtils.rm("#{download_directory}/chromedriver_mac64.zip")
+end
+
+def main
+  puts "Downloading chromedriver vesion #{required_version.version_string}..."
+  download_chromedriver
+  unzip_chromedriver
+  remove_old_chromedriver if File.exist?("#{home_directory}/bin/chromedriver")
+  move_chromedriver_to_bin_dir
+  make_chromedriver_executable
+  remove_zip_file
+  puts "Finished!"
+end
+
+main
