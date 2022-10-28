@@ -1,8 +1,11 @@
 #!/usr/bin/env ruby
-# update_chromedriver
+# chromedriver-install
 
-# 20221023
-# 0.0.0
+# 20221029
+# 0.1.0
+
+# Changes since 0.0:
+# 1. Renamed from update_chromedriver to chromedriver-install
 
 gem 'http.rb'
 
