@@ -2,12 +2,17 @@
 # chromedriver-install
 
 # 20221029
-# 0.1.0
+# 0.2.0
 
-# Changes since 0.0:
-# 1. Renamed from update_chromedriver to chromedriver-install
+# Changes since 0.1: (Fix missing dependencies.)
+# 1. + Gemfile
+# 2. + lib/String/matches.rb
+# 3. + lib/Version.rb
 
 gem 'http.rb'
+
+lib_dir = File.expand_path(File.join(File.dirname(__FILE__), '..', 'lib'))
+$LOAD_PATH.unshift(lib_dir) unless $LOAD_PATH.include?(lib_dir)
 
 require 'fileutils'
 require 'http'
