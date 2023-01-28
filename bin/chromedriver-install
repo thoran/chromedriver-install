@@ -2,7 +2,7 @@
 # chromedriver-install
 
 # 20230128
-# 0.3.0
+# 0.3.1
 
 # Changes since 0.2:
 # 0: Add support for Apple ARM binaries.
@@ -10,6 +10,15 @@
 # 2. ~ download_file_path()
 # 3. ~ remove_zip_file()
 # 4. ~ main: Fix output typo.
+# 1: Clean the download directory before performing operations in there; fix a bug when extracting from the zip.
+# 5. ~ download_chromedriver()
+# 6. + unzipped_chromedriver_path()
+# 7. + remove_unzipped_chromedriver_file()
+# 8. + installed_chromedriver_path()
+# 9. ~ unzip_chromedriver(): Fix a bug where another file which wasn't chromedriver was being written to a file named chromedriver.
+# 10. Use File.join everywhere: ~ download_directory(), ~ remove_old_chromedriver(), ~ move_chromedriver_to_bin_dir(), ~ make_chromedriver_executable(), ~ main().
+# 11. ~ remove_zip_file(): Use download_file_path().
+# 12. ~ main: Move conditional from remove_zip_file() to call to remove_zip_file().
 
 gem 'http.rb'
 
@@ -111,7 +120,7 @@ def download_url
 end
 
 def download_directory
-  "#{home_directory}/Downloads"
+  File.join(home_directory, 'Downloads')
 end
 
 def download_file_path
@@ -124,48 +133,58 @@ def download_file_path
   )
 end
 
+def remove_zip_file
+  FileUtils.rm(download_file_path)
+end
+
 def download_chromedriver
+  remove_zip_file if File.exist?(download_file_path)
   open(download_file_path, 'wb') do |file|
     file << URI.open(download_url).read
   end
 end
 
+def unzipped_chromedriver_path
+  File.join(download_directory, 'chromedriver')
+end
+
+def remove_unzipped_chromedriver_file
+  FileUtils.rm(unzipped_chromedriver_path)
+end
+
 def unzip_chromedriver
+  remove_unzipped_chromedriver_file if File.exist?(unzipped_chromedriver_path)
   Zip::File.open(download_file_path) do |zip_file|
     zip_file.each do |zip_entry|
-      zip_file.extract(zip_entry, "#{download_directory}/chromedriver") unless File.exist?("#{download_directory}/#{zip_entry.name}")
+      zip_file.extract(zip_entry, unzipped_chromedriver_path) if zip_entry.name == 'chromedriver'
     end
   end
 end
 
+def installed_chromedriver_path
+  File.join(home_directory, 'bin' , 'chromedriver')
+end
+
 def remove_old_chromedriver
-  FileUtils.rm("#{home_directory}/bin/chromedriver")
+  FileUtils.rm(installed_chromedriver_path)
 end
 
 def move_chromedriver_to_bin_dir
-  FileUtils.mv("#{home_directory}/Downloads/chromedriver", "#{home_directory}/bin/chromedriver")
+  FileUtils.mv(unzipped_chromedriver_path, installed_chromedriver_path)
 end
 
 def make_chromedriver_executable
-  FileUtils.chmod('+x', "#{home_directory}/bin/chromedriver")
-end
-
-def remove_zip_file
-  if RUBY_PLATFORM == 'arm64-darwin22'
-    FileUtils.rm(File.join(download_directory, 'chromedriver_mac_arm64.zip'))
-  else
-    FileUtils.rm(File.join(download_directory, 'chromedriver_mac64.zip'))
-  end
+  FileUtils.chmod('+x', installed_chromedriver_path)
 end
 
 def main
   puts "Downloading chromedriver version #{required_version.version_string}..."
   download_chromedriver
   unzip_chromedriver
-  remove_old_chromedriver if File.exist?("#{home_directory}/bin/chromedriver")
+  remove_old_chromedriver if File.exist?(installed_chromedriver_path)
   move_chromedriver_to_bin_dir
   make_chromedriver_executable
-  remove_zip_file
+  remove_zip_file if File.exist?(download_file_path)
   puts "Finished!"
 end
 
