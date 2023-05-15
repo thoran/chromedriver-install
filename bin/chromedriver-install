@@ -1,16 +1,16 @@
 #!/usr/bin/env ruby
 # chromedriver-install
 
-# 20230128
-# 0.3.1
+# 20230508
+# 0.3.2
 
 # Changes since 0.2:
-# 0: Add support for Apple ARM binaries.
+# -/0 Add support for Apple ARM binaries.
 # 1. ~ download_url()
 # 2. ~ download_file_path()
 # 3. ~ remove_zip_file()
 # 4. ~ main: Fix output typo.
-# 1: Clean the download directory before performing operations in there; fix a bug when extracting from the zip.
+# 0/1 Clean the download directory before performing operations in there; fix a bug when extracting from the zip.
 # 5. ~ download_chromedriver()
 # 6. + unzipped_chromedriver_path()
 # 7. + remove_unzipped_chromedriver_file()
@@ -19,6 +19,9 @@
 # 10. Use File.join everywhere: ~ download_directory(), ~ remove_old_chromedriver(), ~ move_chromedriver_to_bin_dir(), ~ make_chromedriver_executable(), ~ main().
 # 11. ~ remove_zip_file(): Use download_file_path().
 # 12. ~ main: Move conditional from remove_zip_file() to call to remove_zip_file().
+# 1/2 Accommodate the different filenames used soon after Apple Silicon was released.
+# 13. ~ download_url(): + required_version <= Version.new('106.0.5249.21')
+# 14. ~ download_file_path(): + required_version <= Version.new('106.0.5249.21')
 
 gem 'http.rb'
 
@@ -111,11 +114,17 @@ end
 
 def download_url
   @download_url ||= (
-    if RUBY_PLATFORM == 'arm64-darwin22'
-      "https://chromedriver.storage.googleapis.com/#{required_version}/chromedriver_mac_arm64.zip"
-    else
-      "https://chromedriver.storage.googleapis.com/#{required_version}/chromedriver_mac64.zip"
-    end
+    base_download_url = "https://chromedriver.storage.googleapis.com/#{required_version}"
+    variant_download_url = (
+      if RUBY_PLATFORM =~ /arm64/ && required_version <= Version.new('106.0.5249.21')
+        "/chromedriver_mac64_m1.zip"
+      elsif RUBY_PLATFORM =~ /arm64/
+        "/chromedriver_mac_arm64.zip"
+      else
+        "/chromedriver_mac64.zip"
+      end
+    )
+    base_download_url + variant_download_url
   )
 end
 
@@ -125,7 +134,9 @@ end
 
 def download_file_path
   @download_file_path ||= (
-    if RUBY_PLATFORM == 'arm64-darwin22'
+    if RUBY_PLATFORM =~ /arm64/ && required_version <= Version.new('106.0.5249.21')
+      File.join(download_directory, 'chromedriver_ma64_m1.zip')
+    elsif RUBY_PLATFORM =~ /arm64/
       File.join(download_directory, 'chromedriver_mac_arm64.zip')
     else
       File.join(download_directory, 'chromedriver_mac64.zip')
@@ -139,7 +150,7 @@ end
 
 def download_chromedriver
   remove_zip_file if File.exist?(download_file_path)
-  open(download_file_path, 'wb') do |file|
+  File.open(download_file_path, 'wb') do |file|
     file << URI.open(download_url).read
   end
 end
