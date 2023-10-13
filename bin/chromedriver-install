@@ -1,27 +1,23 @@
 #!/usr/bin/env ruby
 # chromedriver-install
 
-# 20230508
-# 0.3.2
+# 20231013
+# 0.4.0
 
-# Changes since 0.2:
-# -/0 Add support for Apple ARM binaries.
-# 1. ~ download_url()
-# 2. ~ download_file_path()
-# 3. ~ remove_zip_file()
-# 4. ~ main: Fix output typo.
-# 0/1 Clean the download directory before performing operations in there; fix a bug when extracting from the zip.
-# 5. ~ download_chromedriver()
-# 6. + unzipped_chromedriver_path()
-# 7. + remove_unzipped_chromedriver_file()
-# 8. + installed_chromedriver_path()
-# 9. ~ unzip_chromedriver(): Fix a bug where another file which wasn't chromedriver was being written to a file named chromedriver.
-# 10. Use File.join everywhere: ~ download_directory(), ~ remove_old_chromedriver(), ~ move_chromedriver_to_bin_dir(), ~ make_chromedriver_executable(), ~ main().
-# 11. ~ remove_zip_file(): Use download_file_path().
-# 12. ~ main: Move conditional from remove_zip_file() to call to remove_zip_file().
-# 1/2 Accommodate the different filenames used soon after Apple Silicon was released.
-# 13. ~ download_url(): + required_version <= Version.new('106.0.5249.21')
-# 14. ~ download_file_path(): + required_version <= Version.new('106.0.5249.21')
+# Changes since 0.3:
+# -/0 Handle the new JSON API.
+# 1. + hardware_platform()
+# 2. + json_api_url()
+# 3. + json_api_data()
+# 4. + json_api_downloadable_version_strings()
+# 5. + json_api_download_url()
+# 6. + hardware_platform()
+# 7. /downloadable_version_strings()/download_page_downloadable_version_strings()/
+# 8. /download_url()/download_page_download_url()/
+# 9. ~ downloadable_version_strings()
+# 10. ~ download_url()
+# 11. ~ download_file_path()
+# 12. ~ unzip_chromedriver()
 
 gem 'http.rb'
 
@@ -30,11 +26,16 @@ $LOAD_PATH.unshift(lib_dir) unless $LOAD_PATH.include?(lib_dir)
 
 require 'fileutils'
 require 'http'
+require 'json'
 require 'nokogiri'
 require 'open-uri'
 require 'zip'
 require 'String/matches'
 require 'Version'
+
+def hardware_platform
+  @hardware_platform ||= RUBY_PLATFORM.split('-').first
+end
 
 def home_directory
   File.expand_path('~')
@@ -78,6 +79,10 @@ def downloads_page_url
   'https://chromedriver.chromium.org/downloads'
 end
 
+def json_api_url
+  'https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json'
+end
+
 def all_links
   downloads_page = HTTP.get(downloads_page_url).body
   document = Nokogiri::HTML.parse(downloads_page)
@@ -91,10 +96,27 @@ def download_page_links
   end
 end
 
-def downloadable_version_strings
+def json_api_data
+  @json_api_data ||= (
+    raw_json_api_data = HTTP.get(json_api_url).body
+    JSON.parse(raw_json_api_data)
+  )
+end
+
+def download_page_downloadable_version_strings
   download_page_links.map do |download_page_link|
     download_page_link.matches(/(\d+\.\d+\.\d+\.\d+)/)
   end.flatten.uniq
+end
+
+def json_api_downloadable_version_strings
+  json_api_data['versions'].map do |json_api_datum|
+    json_api_datum['version']
+  end
+end
+
+def downloadable_version_strings
+  download_page_downloadable_version_strings + json_api_downloadable_version_strings
 end
 
 def downloadable_versions
@@ -112,19 +134,39 @@ def required_version
   )
 end
 
+def download_page_download_url
+  base_download_url = "https://chromedriver.storage.googleapis.com/#{required_version}"
+  variant_download_url = (
+    if hardware_platform == 'arm64' && required_version <= Version.new('106.0.5249.21')
+      "/chromedriver_mac64_m1.zip"
+    elsif hardware_platform == 'arm64'
+      "/chromedriver_mac_arm64.zip"
+    else
+      "/chromedriver_mac64.zip"
+    end
+  )
+  base_download_url + variant_download_url
+end
+
+def json_api_download_url
+  json_api_datum = (
+    json_api_data['versions'].find do |json_api_datum|
+      json_api_datum['version'] == required_version.to_s
+    end
+  )
+  platform_data = json_api_datum['downloads']['chromedriver'].find do |chrome|
+    chrome['platform'] == "mac-#{hardware_platform}"
+  end
+  platform_data['url']
+end
+
 def download_url
   @download_url ||= (
-    base_download_url = "https://chromedriver.storage.googleapis.com/#{required_version}"
-    variant_download_url = (
-      if RUBY_PLATFORM =~ /arm64/ && required_version <= Version.new('106.0.5249.21')
-        "/chromedriver_mac64_m1.zip"
-      elsif RUBY_PLATFORM =~ /arm64/
-        "/chromedriver_mac_arm64.zip"
-      else
-        "/chromedriver_mac64.zip"
-      end
-    )
-    base_download_url + variant_download_url
+    if required_version >= Version.new('116')
+      json_api_download_url
+    else
+      download_page_download_url
+    end
   )
 end
 
@@ -134,9 +176,13 @@ end
 
 def download_file_path
   @download_file_path ||= (
-    if RUBY_PLATFORM =~ /arm64/ && required_version <= Version.new('106.0.5249.21')
+    if hardware_platform == 'arm64' && required_version >= Version.new('116')
+      File.join(download_directory, 'chromedriver-mac-arm64.zip')
+    elsif hardware_platform == 'x64' && required_version >= Version.new('116')
+      File.join(download_directory, 'chromedriver-mac-x64.zip')
+    elsif hardware_platform == 'arm64' && required_version <= Version.new('106.0.5249.21')
       File.join(download_directory, 'chromedriver_ma64_m1.zip')
-    elsif RUBY_PLATFORM =~ /arm64/
+    elsif hardware_platform == 'arm64'
       File.join(download_directory, 'chromedriver_mac_arm64.zip')
     else
       File.join(download_directory, 'chromedriver_mac64.zip')
@@ -167,7 +213,9 @@ def unzip_chromedriver
   remove_unzipped_chromedriver_file if File.exist?(unzipped_chromedriver_path)
   Zip::File.open(download_file_path) do |zip_file|
     zip_file.each do |zip_entry|
-      zip_file.extract(zip_entry, unzipped_chromedriver_path) if zip_entry.name == 'chromedriver'
+      if zip_entry.name == 'chromedriver' || zip_entry.name == "chromedriver-mac-arm64/chromedriver"
+        zip_file.extract(zip_entry, unzipped_chromedriver_path)
+      end
     end
   end
 end
