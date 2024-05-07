@@ -1,27 +1,17 @@
 #!/usr/bin/env ruby
 # chromedriver-install
 
-# 20240226
-# 0.4.1
+# 20240322
+# 0.5.0
 
-# Changes since 0.3:
-# -/0 Handle the new JSON API.
-# 1. + hardware_platform()
-# 2. + json_api_url()
-# 3. + json_api_data()
-# 4. + json_api_downloadable_version_strings()
-# 5. + json_api_download_url()
-# 6. + hardware_platform()
-# 7. /downloadable_version_strings()/download_page_downloadable_version_strings()/
-# 8. /download_url()/download_page_download_url()/
-# 9. ~ downloadable_version_strings()
-# 10. ~ download_url()
-# 11. ~ download_file_path()
-# 12. ~ unzip_chromedriver()
-# 0/1: Fix for when using later versions of x86.
-# 13. ~ hardware_platform(): Account for the Ruby returning 'x86_64' now, which I thought it always did...
-# 14. ~ unzip_chromedriver(): Fix zip file structure for x64 zip files.
-# 15. /user_applications_version/user_application_version/
+# Changes since 0.4:
+# -/0: Detect the version of Chrome from ~/.cache/selenium/chrome/...
+# 1. + Enumerable#leaves: ...selenium_application_version()
+# 2. + selenium_chrome_paths()
+# 3. + selenium_application_version()
+# 4. + selenium_application?()
+# 5. ~ current_version_string(): + if selenium_application?...
+# 6. ~ download_file_path(): Fix typo in hardware_platform == 'arm64' && required_version <= Version.new('106.0.5249.21') condition's path.
 
 gem 'http.rb'
 
@@ -37,6 +27,18 @@ require 'zip'
 require 'String/matches'
 require 'Version'
 
+module Enumerable
+  def leaves
+    collect do |e|
+      if block_given?
+        yield e
+      else
+        e.last
+      end
+    end
+  end
+end
+
 def hardware_platform
   @hardware_platform ||= (
     hardware_platform = RUBY_PLATFORM.split('-').first
@@ -51,6 +53,16 @@ def home_directory
   File.expand_path('~')
 end
 
+def selenium_chrome_paths
+  selenium_chrome_dir_path = File.expand_path("~/.cache/selenium/chrome/mac-#{hardware_platform}")
+  Dir.glob(File.expand_path("#{selenium_chrome_dir_path}/*"))
+end
+
+def selenium_application_version
+  selenium_chrome_versions = selenium_chrome_paths.leaves{|e| e.split('/').last}
+  Version.latest(selenium_chrome_versions)
+end
+
 def root_application_version
   file_path = "'/Applications/Google Chrome.app/Contents/Info'"
   command = "defaults read #{file_path} CFBundleShortVersionString"
@@ -63,6 +75,10 @@ def user_application_version
   `#{command}`.strip
 end
 
+def selenium_application?
+  File.exist?(File.expand_path('~/.cache/selenium/chrome'))
+end
+
 def root_application?
   File.exist?('/Applications/Google Chrome.app')
 end
@@ -72,7 +88,9 @@ def user_application?
 end
 
 def current_version_string
-  if user_application?
+  if selenium_application?
+    selenium_application_version
+  elsif user_application?
     user_application_version
   elsif root_application?
     root_application_version
@@ -191,7 +209,7 @@ def download_file_path
     elsif hardware_platform == 'x64' && required_version >= Version.new('116')
       File.join(download_directory, 'chromedriver-mac-x64.zip')
     elsif hardware_platform == 'arm64' && required_version <= Version.new('106.0.5249.21')
-      File.join(download_directory, 'chromedriver_ma64_m1.zip')
+      File.join(download_directory, 'chromedriver_mac64_m1.zip')
     elsif hardware_platform == 'arm64'
       File.join(download_directory, 'chromedriver_mac_arm64.zip')
     else
