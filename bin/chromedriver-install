@@ -1,8 +1,8 @@
 #!/usr/bin/env ruby
 # chromedriver-install
 
-# 20240322
-# 0.5.0
+# 20260206
+# 0.5.1
 
 # Changes since 0.4:
 # -/0: Detect the version of Chrome from ~/.cache/selenium/chrome/...
@@ -12,6 +12,8 @@
 # 4. + selenium_application?()
 # 5. ~ current_version_string(): + if selenium_application?...
 # 6. ~ download_file_path(): Fix typo in hardware_platform == 'arm64' && required_version <= Version.new('106.0.5249.21') condition's path.
+# 0/1: Fix compatibility with rubyzip 3.x.
+# 7. ~ unzip_chromedriver(): Use rubyzip 3.x API for Zip::File#extract, passing destination_directory: keyword argument instead of an absolute path as the second positional argument.
 
 gem 'http.rb'
 
@@ -242,7 +244,7 @@ def unzip_chromedriver
   Zip::File.open(download_file_path) do |zip_file|
     zip_file.each do |zip_entry|
       if zip_entry.name == 'chromedriver-mac-x64/chromedriver' || zip_entry.name == "chromedriver-mac-arm64/chromedriver"
-        zip_file.extract(zip_entry, unzipped_chromedriver_path)
+        zip_file.extract(zip_entry, 'chromedriver', destination_directory: download_directory)
       end
     end
   end
