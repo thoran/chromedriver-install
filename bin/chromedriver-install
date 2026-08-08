@@ -1,8 +1,8 @@
 #!/usr/bin/env ruby
 # chromedriver-install
 
-# 20260806
-# 0.5.2
+# 20260807
+# 0.5.3
 
 # Changes since 0.4:
 # -/0: Detect the version of Chrome from ~/.cache/selenium/chrome/...
@@ -16,6 +16,8 @@
 # 7. ~ unzip_chromedriver(): Use rubyzip 3.x API for Zip::File#extract, passing destination_directory: keyword argument instead of an absolute path as the second positional argument.
 # 1/2: Vendor the library files which were resolving from RUBYLIB rather than from the repository.
 # 8. + lib/Array/all_but_last.rb, lib/Thoran/Array/AllButLast/all_but_last.rb and lib/Thoran/Array/LastX/lastX.rb. Module/alias_methods requires the first, which requires the second, which requires the third, and none of them had ever been vendored. They resolved here because RUBYLIB supplies them, and audit_requires passed them over because the git.rb gem happens to ship the same three paths, so the omission was hidden from both directions at once. A Homebrew install, having neither, is what exposed it.
+# 2/3: Make the script executable.
+# 9. ~ bin/chromedriver-install: mode 100644 --> 100755. A script carrying a shebang and not the bit to go with it cannot be run from a clone at all. Homebrew's bin.install had been setting the bit on the way past, so nothing showed until the formula moved to libexec.install, which keeps whatever mode the repository has.
 
 gem 'http.rb'
 
