@@ -1,0 +1,81 @@
+# CHANGELOG
+
+## 20260808
+
+0.6.0: Add a CHANGELOG in the form changelogger writes, and retire the Changes section from the script header.
+
+1. + CHANGELOG. A dated heading per version, the version and its summary on the first line of the body, then the numbered items, newest first: the form changelogger writes and the other repositories already use. The entries for 0.0.0 and 0.1.0 are recovered from the two commits the old git-importall left unlabelled, 0.1.0 from the Changes section in its own header and 0.0.0, having no predecessor to be compared against, from an inventory of what the first revision does. Versions 0.2.0 to 0.4.1 carry their summary alone, no items having been recorded for them here.
+2. - The Changes section from the script header. The CHANGELOG holds that record now, and keeping both invites them to disagree. Its items are carried across to the entries for 0.5.0 through 0.5.3, renumbered from 1 within each, the -/0 and n/n+1 markers having nothing left to disambiguate once every version has a dated entry of its own.
+
+
+## 20260807
+
+0.5.3: Make the script executable.
+
+1. ~ bin/chromedriver-install: mode 100644 --> 100755. A script carrying a shebang and not the bit to go with it cannot be run from a clone at all. Homebrew's bin.install had been setting the bit on the way past, so nothing showed until the formula moved to libexec.install, which keeps whatever mode the repository has.
+
+
+## 20260806
+
+0.5.2: Vendor the library files which were resolving from RUBYLIB rather than from the repository.
+
+1. + lib/Array/all_but_last.rb, lib/Thoran/Array/AllButLast/all_but_last.rb and lib/Thoran/Array/LastX/lastX.rb. Module/alias_methods requires the first, which requires the second, which requires the third, and none of them had ever been vendored. They resolved here because RUBYLIB supplies them, and audit_requires passed them over because the git.rb gem happens to ship the same three paths, so the omission was hidden from both directions at once. A Homebrew install, having neither, is what exposed it.
+
+
+## 20260206
+
+0.5.1: Fix compatibility with rubyzip 3.x.
+
+1. ~ unzip_chromedriver(): Use rubyzip 3.x API for Zip::File#extract, passing destination_directory: keyword argument instead of an absolute path as the second positional argument.
+
+
+## 20240322
+
+0.5.0: Detect the version of Chrome from ~/.cache/selenium/chrome/...
+
+1. + Enumerable#leaves: ...selenium_application_version()
+2. + selenium_chrome_paths()
+3. + selenium_application_version()
+4. + selenium_application?()
+5. ~ current_version_string(): + if selenium_application?...
+6. ~ download_file_path(): Fix typo in hardware_platform == 'arm64' && required_version <= Version.new('106.0.5249.21') condition's path.
+
+
+## 20240226
+
+0.4.1: Fix for when using later versions of x86.
+
+
+## 20231013
+
+0.4.0: Handle the new JSON API.
+
+
+## 20230508
+
+0.3.2: Accommodate the different filenames used soon after Apple Silicon was released.
+
+
+## 20230128
+
+0.3.1: Clean the download directory before performing operations in there; fix a bug when extracting from the zip file.
+
+
+## 20230128
+
+0.3.0: Add support for Apple ARM binaries.
+
+
+## 20221029
+
+0.2.0: Fix missing dependencies.
+
+
+## 20221029
+
+0.1.0: Rename from update_chromedriver to chromedriver-install.
+
+
+## 20221023
+
+0.0.0: Download the chromedriver matching the installed version of Chrome and install it into ~/bin.
