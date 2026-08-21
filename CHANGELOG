@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 20260821
+
+0.7.0: + README.md
+
+1. + README.md. Description, Installation, Dependencies, Usage, Notes and Contributing, following the shape of the READMEs the other programs in the tap carry.
+2. The Description sets out the four steps, of which the second and third are the ones worth knowing: the match is on major, minor and tiny, and where the download comes from turns on whether the version is 116 or above.
+3. The Notes record what the script does not say: the binary lands at ~/bin/chromedriver and that directory has to exist already, Selenium's cached Chrome is preferred over either application bundle, and ~/Downloads is used as the working directory.
+
+
 ## 20260817
 
 0.6.1: ~ .gitignore: + current default contents

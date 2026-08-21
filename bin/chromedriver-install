@@ -1,8 +1,8 @@
 #!/usr/bin/env ruby
 # chromedriver-install
 
-# 20260817
-# 0.6.1
+# 20260821
+# 0.7.0
 
 gem 'http.rb'
 
