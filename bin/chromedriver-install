@@ -2,7 +2,7 @@
 # chromedriver-install
 
 # 20260821
-# 0.7.0
+# 0.7.1
 
 gem 'http.rb'
 

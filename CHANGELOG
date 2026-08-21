@@ -2,6 +2,15 @@
 
 ## 20260821
 
+0.7.1: ~ lib/Ordinal.rb: 0.2.0 --> 0.2.1, which fixes the spelling of nineteenth.
+
+1. ~ lib/Ordinal.rb: 0.2.0 --> 0.2.1, taken from ~/lib/ruby by vendor_requires --overwrite once that tree was itself brought up to _libraries' copy.
+2. The change is /ninteenth/nineteenth/, which renames a method. Nothing calls either spelling — the only occurrences anywhere are the definitions themselves — so nothing turns on it here, and the eight other files this vendors were already identical.
+3. git.rb had been carrying 0.2.1 since 20220527 while ~/lib/ruby and this repository sat at 0.2.0, which is what made the deployed copy the one to fix rather than the source.
+
+
+## 20260821
+
 0.7.0: + README.md
 
 1. + README.md. Description, Installation, Dependencies, Usage, Notes and Contributing, following the shape of the READMEs the other programs in the tap carry.
